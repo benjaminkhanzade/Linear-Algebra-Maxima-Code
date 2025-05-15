@@ -1,0 +1,99 @@
+/*q1*/
+to_matrix(L):=
+    if matrixp(L) then L
+    else apply('matrix,L);
+
+nonzero_rows(M) := block(
+    [n, result],
+    n : length(M),
+    result : [],
+    for i:1 thru n do (
+        if not (row(M, i) = zeromatrix(1, length(M[1]))) then
+            result : endcons(row(M, i), result)
+    ),
+    return(result)
+)$
+
+remove_first_rows_cols(M, r, c) := block(
+    [rows, cols, kept_rows, kept_cols, result],
+    
+    rows : length(M),
+    cols : length(first(M)),
+
+    kept_rows : create_list(i, i, r + 1, rows),
+    kept_cols : create_list(j, j, c + 1, cols),
+
+    result : apply(matrix, makelist(
+        makelist(M[i][j], j, kept_cols),
+        i, kept_rows
+    )),
+    
+    return(result)
+)$
+
+
+four_basis(L) := block(
+    [R, R_basis, C_basis, N_basis, N_prime_basis, m, n],
+
+    A:to_matrix(L), 
+
+    /* ابعاد ماتریس */
+    m: matrix_size(A)[1], /*تعداد سطر ها */
+    n: matrix_size(A)[2], /*تعداد ستون ها */
+
+    At : transpose(A)
+
+    nk : length(nullspace(At)),
+    mk : length(nullspace(A)),
+
+    kn : m  - nk,
+    km : n - mk,
+    
+    
+    R: echelon(A),
+    R_basis:nonzero_rows(R),
+    if  R_basis = [] then R_basis : false,
+
+
+    C:echelon (At),
+    C_basis: nonzero_rows(C),
+    if C_basis = [] then C_basis : false,
+
+    N1 : addcol(At, ident(n)),
+    N :echelon (N1) ,
+    N_basis:nonzero_rows(remove_first_rows_cols(N, kn , m) ),
+    if  N_basis = [] then N_basis : false,
+
+    N2 : addcol(A, ident(m)) ,
+    N_p:echelon (N2) ,
+    N_prime_basis: nonzero_rows(remove_first_rows_cols(N_p, km, n)),
+    if  N_prime_basis = [] then N_prime_basis : false,
+
+    [R_basis, C_basis, N_basis, N_prime_basis]
+)$
+
+
+stack_rows(L) := block(
+    if L = false then return(false),
+    apply(matrix, map(lambda([v], if length(v) = 1 then v[1] else v), L))
+)$
+
+
+
+four_basis_mat(L) := block(
+   [R_basis, C_basis, N_basis, N_prime_basis, RM_basis, CM_basis, NM_basis, NM_prime_basis],
+   
+   A:to_matrix(L), 
+
+   R_basis : four_basis(A)[1],
+   C_basis :  four_basis(A)[2],
+   N_basis : four_basis(A)[3],
+   N_prime_basis: four_basis(A)[4],
+
+   RM_basis:stack_rows(R_basis),
+   CM_basis: stack_rows(C_basis),
+   NM_basis : stack_rows(N_basis),
+   NM_prime_basis: stack_rows(NM_basis),
+
+   [RM_basis,CM_basis,NM_basis,NM_prime_basis]
+)$
