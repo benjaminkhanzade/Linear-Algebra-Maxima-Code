@@ -1,0 +1,272 @@
+
+/*q1*/
+
+ to_matrix(L):=block(
+    if matrixp(L) then L
+    else apply('matrix,L)
+ )$
+
+
+nonzero_rows(M) := block(
+    [n, result],
+    n : length(M),
+    result : [],
+    for i:1 thru n do (
+        if not (row(M, i) = zeromatrix(1, length(M[1]))) then
+            result : endcons(row(M, i), result)
+    ),
+    return(result)
+)$
+
+remove_first_rows_cols(M, r, c) := block(
+    [rows, cols, kept_rows, kept_cols, result],
+    
+    rows : length(M),
+    cols : length(first(M)),
+
+    kept_rows : create_list(i, i, r + 1, rows),
+    kept_cols : create_list(j, j, c + 1, cols),
+
+    result : apply(matrix, makelist(
+        makelist(M[i][j], j, kept_cols),
+        i, kept_rows
+    )),
+    
+    return(result)
+)$
+
+
+four_basis(L) := block(
+    [R, R_basis, C_basis, N_basis, N_prime_basis, m, n, i, non_zero_rows],
+    A: to_matrix(L),
+    /* ابعاد ماتریس */
+    m: matrix_size(A)[1], /*تعداد سطر ها */
+    n: matrix_size(A)[2], /*تعداد ستون ها */
+    At : transpose(A),
+    nk : length(nullspace(At)),
+    mk : length(nullspace(A)),
+    kn : m  - nk,
+    
+    km : n - mk,
+    
+    
+    /* محاسبه فرم پلکانی سطری */
+    R: echelon(A),
+
+    R_basis:nonzero_rows(R),
+
+    if  R_basis = [] then R_basis : false,
+
+    
+
+
+
+/* در اینجا الگوریتم ارائه شده به محسابه‌ی فضای پوچ برداری و بردار های آن میپردازد!*/ 
+
+
+    C:echelon (At),
+
+   C_basis: nonzero_rows(C),
+   if C_basis = [] then C_basis : false,
+    /* پایه فضای پوچ */
+
+    N1 : addcol(At, ident(n)),
+
+    N :echelon (N1) ,
+   
+    N_basis:nonzero_rows(remove_first_rows_cols(N, kn , m) ),
+if  N_basis = [] then N_basis : false,
+
+    N2 : addcol(A, ident(m)) ,
+
+    N_p:echelon (N2) ,
+
+/* پایه فضای پوچ چپ */
+    N_prime_basis: nonzero_rows(remove_first_rows_cols(N_p, km, n)),
+    if  N_prime_basis = [] then N_prime_basis : false,
+    /* برگرداندن نتایج */
+    [R_basis, C_basis, N_basis, N_prime_basis]
+)$
+
+
+stack_rows(L) := block(
+    if L = false then return(false),
+    apply(matrix, map(lambda([v], if length(v) = 1 then v[1] else v), L))
+)$
+
+stack_rowst(L) := block(
+    if L = false then return(false),
+    transpose(apply(matrix, map(lambda([v], if length(v) = 1 then v[1] else v), L)))
+)$
+
+
+four_basis_mat(L) := block(
+   [R_basis, C_basis, N_basis, N_prime_basis, RM_basis, CM_basis, NM_basis, NM_prime_basis],
+   
+    A: to_matrix(L),
+
+   R_basis : four_basis(A)[1],
+   C_basis :  four_basis(A)[2],
+   N_basis : four_basis(A)[3],
+   N_prime_basis: four_basis(A)[4],
+
+   RM_basis:stack_rows(R_basis),
+   CM_basis: stack_rows(C_basis),
+   NM_basis : stack_rowst(N_basis),
+   NM_prime_basis: stack_rowst(N_prime_basis),
+
+   [RM_basis,CM_basis,NM_basis,NM_prime_basis]
+)$
+
+
+/*q3*/
+
+
+/*
+
+ در این راه حل از راه حل پیشنهادی ۲ رفته ایم ابتدا ماتریس 
+[A|-b]
+رو تشکیل دادیم سپس از طریق تابع 
+check_last_column_zero(matrix_list)
+تمام بردار هایی که از فضای پوچ به واسطه تابع 
+four_basis
+که در سوال ۱ طراحی شده بود کشیدیم بیرون و به تابع دادیم و اون به ما اونهایی که آخرین سطرشون صفر نیست را برگرداند
+سپس از طریق تابع 
+first_element(lst) 
+اولین عنصر را از لیست مذکور گرفتیم تا بتوانیم به عنوان بردار نماینده 
+برگردانیمش
+
+از طریق تابع 
+normalize_row_matrix(M)
+تابع رو نرمال کردیم یعنی اینکه تمام درایه های ما قبل آخر را تقسیم بر آخرین درایه کردیم و سپس به واسطه 
+ remove_last_column(M)
+آخرین ستون (درایه را ) حذف کردیم و نتیجه نهایی را چاپ کردیم
+
+توجه: توی هر یک از مراحل فوق اگه لیست خالی یا مقادیر غلط بودند نتیجه را غلط چاپ کردیم و در صورتی W
+تعریف نشده بود بازم مقدار غلط را چاپ کردیم چون اگه 
+w
+غلط نشده باشد به این معناست که این معادله جواب ندارد!
+
+*/
+
+
+
+check_last_column_zero(matrix_list) := block(
+    [result : []],
+    
+    /* اگر لیست فالس باشد، همان را برمی‌گرداند */
+    if matrix_list = false then return(false),
+
+    /* پردازش هر ماتریس در لیست */
+    for m in matrix_list do (
+        /* گرفتن آخرین ستون از ماتریس */
+        if is(matrixp(m)) then (
+            last_col : transpose(m)[length(transpose(m))],
+            /* بررسی اینکه آیا عنصر آخر ستون صفر نیست */
+            if last(last_col) # 0 then (
+                result : endcons(m, result)
+            )
+        )
+    ),
+    
+    /* اگر نتیجه خالی بود false برگردان، وگرنه خود لیست را */
+    return(if result = [] then false else result)
+)$
+
+
+
+
+first_element(lst) := block(
+    /* اگر ورودی فالس باشد، همان را برمی‌گردانیم */
+    if lst = false then return(false),
+    
+    /* در غیر این صورت، اولین عنصر لیست را برمی‌گردانیم */
+    return(first(lst))
+    
+)$
+
+
+normalize_row_matrix(M) := block(
+    [n_cols, last_col, normalized_row],
+    
+    /* اگر ورودی برابر false باشد، همان را برگردان */
+    if M = false then return(false),
+
+    /* گرفتن تعداد ستون‌ها */
+    n_cols: length(M[1]),
+    
+    /* گرفتن درایه آخر */
+    last_col: M[1, n_cols],
+    
+    /* ایجاد نسخه کپی برای تغییرات */
+    normalized_row: copymatrix(M),
+    
+    /* تقسیم درایه‌های ماقبل آخر بر درایه آخر */
+    for j:1 thru n_cols-1 do (
+        normalized_row[1, j]: normalized_row[1, j] / last_col
+    ),
+    
+    /* برگرداندن ماتریس نرمال‌شده */
+    return(normalized_row)
+)$
+
+remove_last_column(M) := block(
+    [num_cols, new_row],
+    
+    /* بررسی اینکه آیا ورودی یک ماتریس سطری است */
+    if not matrixp(M) or length(M) > 1 then (
+        return(undefined)
+    ),
+    
+    /* تعداد ستون‌های ماتریس */
+    num_cols: length(M[1]),
+    
+    /* اگر ماتریس فقط یک ستون داشته باشد، نمی‌توانیم ستون آخر را حذف کنیم */
+    if num_cols <= 1 then (
+         return(undefined)
+    ),
+    
+    /* ایجاد یک لیست جدید بدون ستون آخر */
+    new_row: rest(M[1], -1),  /* `rest` با آرگومان منفی، آخرین عنصر را حذف می‌کند */
+    
+    /* تبدیل لیست جدید به ماتریس سطری */
+    matrix(new_row)
+)$
+
+
+particular_solution(L, a) := block(
+    [A, b, c, C, l, x, y, z, w],
+
+    /* تبدیل لیست L به ماتریس A */
+    A : to_matrix(L),
+
+    /* بررسی نوع a */
+    c : if listp(a) then to_matrix([a])
+        else if matrixp(a) then a
+        else return(false), /* اگر نه لیست بود نه ماتریس، رد شود */
+
+    /* تبدیل به بردار ستونی */
+    b : if length(c[1]) = 1 then c else transpose(c),
+
+    /* ساخت ماتریس ضمیمه‌شده */
+    C : addcol(A, -b),
+
+    /* گرفتن فضای پوچ ماتریس ضمیمه */
+    l : four_basis(C)[3],
+
+    /* چک کردن اینکه ستون آخر صفر نیست */
+    x : check_last_column_zero(l),
+
+    /* گرفتن اولین جواب */
+    y : first_element(x),
+
+    /* نرمال‌سازی سطر */
+    z : normalize_row_matrix(y),
+
+    /* حذف ستون آخر */
+    w : remove_last_column(z),
+
+    /* اگر جواب نهایی تعریف نشده باشد، false برگردان */
+    return(if w = 'undefined then false else w)
+)$
+
